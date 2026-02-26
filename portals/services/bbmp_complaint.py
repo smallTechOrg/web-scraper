@@ -2,7 +2,7 @@
 
 from playwright.sync_api import sync_playwright, TimeoutError
 import traceback
-
+import re
 
 def raise_complaint(category, subcategory, description, image_path, latitude, longitude, use_other_location):
     try:
@@ -154,17 +154,46 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             submit_btn.scroll_into_view_if_needed()
             submit_btn.click()
 
-            print("Submitted. Waiting 60 seconds for observation (page will stay open)...")
+            # ===== HANDLE CUSTOM POPUP =====
+            print("Waiting for submit confirmation popup...")
+            popup_ok = page.locator("#popup_ok")
+            popup_ok.wait_for(state="visible", timeout=15000)
+            popup_ok.click()
+            print("Clicked OK on confirmation popup.")
+
+            # ===== WAIT FOR ACK CONTENT (ROBUST) =====
+            print("Waiting for acknowledgement content to appear...")
+            page.wait_for_selector("h5.mainHeading:has-text('Complaint Registration Acknowledgement')", timeout=60000)
+            page.wait_for_selector("p.text-left", timeout=60000)
+            print("Acknowledgement page detected.")
+
+            # ===== EXTRACT COMPLAINT ID + TIMESTAMP =====
+            print("Extracting complaint ID and timestamp...")
+            ack_paragraph = page.locator("p.text-left").first
+            ack_text = ack_paragraph.inner_text()
+
+            id_match = re.search(r"Complaint ID\s*(\d+)", ack_text)
+            time_match = re.search(r"on\s*(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2})", ack_text)
+
+            if not id_match:
+                raise Exception("❌ Could not extract Complaint ID")
+            if not time_match:
+                raise Exception("❌ Could not extract timestamp")
+
+            complaint_id = id_match.group(1)
+            timestamp = time_match.group(1)
+
+            print("🎯 Complaint ID:", complaint_id)
+            print("🕒 Timestamp:", timestamp)
+
+            print("just waiting a bit before closing browser...")
             page.wait_for_timeout(60_000)  # 60 seconds
 
-            print("Done observing post-submit state.")
-
-            print("Waiting for submission confirmation...")
-            frame.wait_for_timeout(5000)
-
-            print("✅ Complaint submitted successfully")
             browser.close()
-            return True, "Complaint submitted successfully"
+            return True, {
+                "complaint_id": complaint_id,
+                "timestamp": timestamp
+            }
 
     except TimeoutError:
         print("⏰ Timeout during complaint submission")

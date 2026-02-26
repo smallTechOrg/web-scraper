@@ -21,7 +21,9 @@ class ComplaintReportRequestSchema(Schema):
 
 class ComplaintReportResponseSchema(Schema):
     success = fields.Boolean()
-    message = fields.String()
+    complaint_id = fields.String(allow_none=True)
+    timestamp = fields.String(allow_none=True)
+    error = fields.String(allow_none=True)
 
 @complaint_report_bp.route("/")
 class ComplaintReport(MethodView):
@@ -29,5 +31,19 @@ class ComplaintReport(MethodView):
     @complaint_report_bp.arguments(ComplaintReportRequestSchema)
     @complaint_report_bp.response(200, ComplaintReportResponseSchema)
     def post(self, args):
-        success, message = raise_complaint(**args)
-        return {"success": success, "message": message}
+        success, result = raise_complaint(**args)
+
+        if success:
+            return {
+                "success": True,
+                "complaint_id": result["complaint_id"],
+                "timestamp": result["timestamp"],
+                "error": None
+            }
+
+        return {
+            "success": False,
+            "complaint_id": None,
+            "timestamp": None,
+            "error": result.get("error", "Unknown error")
+        }

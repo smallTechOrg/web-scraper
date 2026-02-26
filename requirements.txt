@@ -10,3 +10,6 @@ marshmallow
 flask_swagger_ui
 pytest
 pytest-html
+pillow 
+opencv-python 
+easyocr

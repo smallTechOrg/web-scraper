@@ -1,7 +1,7 @@
 from flask_smorest import Blueprint
 from flask.views import MethodView
 from marshmallow import Schema, fields
-from services.complaint_scraper import fetch_complaint_status
+from portals.services.complaint_scraper import fetch_complaint_status
 
 complaint_bp = Blueprint(
     "complaint",

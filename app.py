@@ -1,8 +1,9 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_smorest import Api
-from api.complaint import complaint_bp
+from api.bbmpcomplaint import complaint_bp
 from api.health import health_bp
+from api.bbmplogin import login_bp
 from config import DEBUG
 
 def create_app() -> Flask:
@@ -25,6 +26,7 @@ def create_app() -> Flask:
     smorest_api = Api(app)
     smorest_api.register_blueprint(complaint_bp)
     smorest_api.register_blueprint(health_bp)
+    smorest_api.register_blueprint(login_bp)
 
     CORS(app)
     return app

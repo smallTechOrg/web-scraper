@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_smorest import Api
 from api.bbmpcomplaint import complaint_bp
+from api.bbmp_complaint_report import complaint_report_bp
 from api.health import health_bp
 from api.bbmplogin import login_bp
 from config import DEBUG
@@ -25,6 +26,7 @@ def create_app() -> Flask:
     # -- Smorest-managed blueprints (auto-documented) --------------------------
     smorest_api = Api(app)
     smorest_api.register_blueprint(complaint_bp)
+    smorest_api.register_blueprint(complaint_report_bp)
     smorest_api.register_blueprint(health_bp)
     smorest_api.register_blueprint(login_bp)
 

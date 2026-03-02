@@ -9,8 +9,7 @@ from models.schemas import (
     ReportResponseSchema,
     TrackResponseSchema,
 )
-from portals.complaint_scraper import fetch_complaint_status
-from portals.bbmp_complaint import raise_complaint
+from portals import action_registry
 
 scrape_bp = Blueprint(
     "scrape",
@@ -37,59 +36,34 @@ class ScrapeAPI(MethodView):
         action_type = action["type"]
         action_data = action["data"]
 
-        # Validate supported combination
+        # Validate supported source
         if source != SourceEnum.GOV_ISSUE_PORTAL.value:
             raise ValidationError("Unsupported source")
 
+        # Validate supported portal
         if portal != PortalEnum.SMARTONEBLR.value:
             raise ValidationError("Unsupported portal")
 
-        # -------------------------
-        # TRACK ISSUE FLOW
-        # -------------------------
-        if action_type == ActionTypeEnum.TRACK_ISSUE.value:
-
-            tracking_id = action_data["tracking_id"]
-
-            result = fetch_complaint_status(tracking_id)
-
-            if not result.get("success", False):
-                raise ValidationError(result.get("error", "Failed to fetch complaint status"))
-
-            return {
-                "data": result
-            }
-
-        # -------------------------
-        # REPORT ISSUE FLOW
-        # -------------------------
-        if action_type == ActionTypeEnum.REPORT_ISSUE.value:
-
-            # Get authentication credentials from context
-            auth = context.get("auth", {})
-            mobile = auth.get("username")
-            password = auth.get("password")
-
-            success, result = raise_complaint(
-                category=action_data.get("category"),
-                subcategory=action_data.get("sub_category"),
-                description=action_data.get("description"),
-                image_path=action_data.get("media_url"),
-                latitude=action_data.get("latitude"),
-                longitude=action_data.get("longitude"),
-                mobile=mobile,
-                password=password
-            )
-
-            if success:
-                return {
-                    "data": {
-                        "tracking_id": result["complaint_id"]
-                    }
-                }
-
+        # Validate action type is supported by checking if handler exists
+        if not action_registry.is_registered(source, portal, action_type):
             raise ValidationError(
-                result if isinstance(result, str) else result.get("error", "Failed to raise complaint")
+                f"Unsupported action type '{action_type}' for source '{source}' and portal '{portal}'"
             )
 
-        raise ValidationError("Unsupported action type")
+        # Dispatch to the appropriate handler
+        try:
+            success, result = action_registry.dispatch(
+                source=source,
+                portal=portal,
+                action_type=action_type,
+                action_data=action_data,
+                context=context
+            )
+        except ValueError as e:
+            raise ValidationError(str(e))
+
+        if not success:
+            error_message = result.get("error", "Unknown error")
+            raise ValidationError(error_message)
+
+        return result

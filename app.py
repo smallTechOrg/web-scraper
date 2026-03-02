@@ -13,12 +13,13 @@ def create_app() -> Flask:
     # Auto-generated spec is served at /api/openapi.json.
     # Interactive Swagger UI is served at /api/docs.
     app.config.update(
-        API_TITLE="Chat API",
+        API_TITLE="Web Scraper API",
         API_VERSION="v1",
         OPENAPI_VERSION="3.0.3",
         OPENAPI_URL_PREFIX="/api",
         OPENAPI_SWAGGER_UI_PATH="/docs",
         OPENAPI_SWAGGER_UI_URL="https://cdn.jsdelivr.net/npm/swagger-ui-dist/",
+        OPENAPI_JSONPATH="openapi.json",
     )
 
     # -- Smorest-managed blueprints (auto-documented) --------------------------

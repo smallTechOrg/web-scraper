@@ -118,7 +118,7 @@ def handle_report_issue(action_data: dict, context: dict) -> tuple[bool, dict]:
     if success:
         return True, {
             "data": {
-                "tracking_id": result["complaint_id"]
+                "tracking_id": int(result["complaint_id"])
             }
         }
     

@@ -15,7 +15,7 @@ scrape_bp = Blueprint(
     "scrape",
     __name__,
     url_prefix="/api/v1/scrape",
-    description="Scrape integration endpoints"
+    description="BBMP Complaint Portal - Government Issue Portal Integration API"
 )
 
 
@@ -24,10 +24,63 @@ scrape_bp = Blueprint(
 # ---------------------------- 
 @scrape_bp.route("/")
 class ScrapeAPI(MethodView):
+    """
+    Scrape API Endpoint
+    
+    POST /api/v1/scrape
+    
+    Used for interacting with the BBMP (Bruhat Bengaluru Mahanagara Palike) 
+    SmartOne Bangalore complaint portal to:
+    - Report new issues/complaints
+    - Track existing complaint status
+    """
 
     @scrape_bp.arguments(ScrapeRequestSchema)
     @scrape_bp.response(200, ScrapeResponseSchema)
     def post(self, request_data):
+        """
+        Submit a scrape request
+        
+        ---
+        Request Body:
+            source (str): Source type - use "GOV_ISSUE_PORTAL"
+            context (object): Request context containing:
+                - portal: Portal identifier (e.g., "SMARTONEBLR")
+                - action: Action to perform with type and data
+                - auth: Authentication credentials
+        
+        Supported Actions:
+            - REPORT_ISSUE: Submit a new complaint
+            - TRACK_ISSUE: Check status of existing complaint
+        
+        Example (Report Issue):
+            {
+                "source": "GOV_ISSUE_PORTAL",
+                "context": {
+                    "portal": "SMARTONEBLR",
+                    "action": {
+                        "type": "REPORT_ISSUE",
+                        "data": {
+                            "category": "Road Engineering",
+                            "sub_category": "Potholes",
+                            "description": "Pothole on main road",
+                            "media_url": "path/to/image.jpg",
+                            "latitude": "12.9716",
+                            "longitude": "77.5946"
+                        }
+                    },
+                    "auth": {
+                        "username": "user123",
+                        "password": "pass123"
+                    }
+                }
+            }
+        
+        Returns:
+            200: Success - returns tracking_id
+            400: Validation error
+            500: Internal server error
+        """
 
         source = request_data["source"]
         context = request_data["context"]

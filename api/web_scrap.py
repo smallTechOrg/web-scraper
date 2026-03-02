@@ -65,6 +65,11 @@ class ScrapeAPI(MethodView):
         # -------------------------
         if action_type == ActionTypeEnum.REPORT_ISSUE.value:
 
+            # Get authentication credentials from context
+            auth = context.get("auth", {})
+            mobile = auth.get("username")
+            password = auth.get("password")
+
             success, result = raise_complaint(
                 category=action_data.get("category"),
                 subcategory=action_data.get("sub_category"),
@@ -72,7 +77,8 @@ class ScrapeAPI(MethodView):
                 image_path=action_data.get("media_url"),
                 latitude=action_data.get("latitude"),
                 longitude=action_data.get("longitude"),
-                use_other_location=False
+                mobile=mobile,
+                password=password
             )
 
             if success:
@@ -83,7 +89,7 @@ class ScrapeAPI(MethodView):
                 }
 
             raise ValidationError(
-                result.get("error", "Failed to raise complaint")
+                result if isinstance(result, str) else result.get("error", "Failed to raise complaint")
             )
 
         raise ValidationError("Unsupported action type")

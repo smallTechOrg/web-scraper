@@ -1,10 +1,11 @@
 # portals/services/bbmp_complaint.py
 
 from playwright.sync_api import sync_playwright, TimeoutError
+from portals.services.bbmp_login import login_user, check_user_logged_in
 import traceback
 import re
 
-def raise_complaint(category, subcategory, description, image_path, latitude, longitude):
+def raise_complaint(category, subcategory, description, image_path, latitude, longitude, mobile=None, password=None):
     try:
         print("Launching browser...")
         with sync_playwright() as p:
@@ -14,6 +15,36 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
 
             print("Opening BBMP portal...")
             page.goto("https://www.smartoneblr.com/BBMPServices.htm", timeout=60000)
+
+            # ===== CHECK SESSION VALIDITY =====
+            print("Checking session validity...")
+            page.wait_for_timeout(2000)  # Give page time to load fully
+            
+            if not check_user_logged_in(page):
+                print("Session is invalid or timed out!")
+                
+                if not mobile or not password:
+                    print("No credentials provided for re-login")
+                    browser.close()
+                    return False, "Session expired and no credentials provided for re-login"
+                
+                print("Attempting to re-login with provided credentials...")
+                
+                # Call login_user with existing page for in-place login
+                success, message = login_user(mobile, password, page)
+                
+                if not success:
+                    return False, f"Re-login failed: {message}"
+                
+                print("Re-login successful on same page...")
+                page.wait_for_timeout(2000)
+                
+                # Verify session is now valid
+                if not check_user_logged_in(page):
+                    browser.close()
+                    return False, "Session still invalid after re-login"
+            
+            print("Session is valid, proceeding with complaint...")
 
             print("Clicking Sahaya 2.0...")
             page.click("text=BBMP (SAHAYA 2.0)")
@@ -157,8 +188,8 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             print("Waiting for submit confirmation popup...")
             popup_ok = page.locator("#popup_ok")
             popup_ok.wait_for(state="visible", timeout=15000)
-            popup_ok.click()
-            print("Clicked OK on confirmation popup.")
+            # popup_ok.click()
+            # print("Clicked OK on confirmation popup.")
 
             # ===== WAIT FOR ACK CONTENT (ROBUST) =====
             print("Waiting for acknowledgement content to appear...")

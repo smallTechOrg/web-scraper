@@ -1,7 +1,7 @@
 # portals/services/bbmp_complaint.py
 
 from playwright.sync_api import sync_playwright, TimeoutError
-from portals.services.bbmp_login import login_user, check_user_logged_in
+from portals.bbmp_login import login_user, check_user_logged_in
 import traceback
 import re
 

@@ -9,8 +9,8 @@ from models.schemas import (
     ReportResponseSchema,
     TrackResponseSchema,
 )
-from portals.services.complaint_scraper import fetch_complaint_status
-from portals.services.bbmp_complaint import raise_complaint
+from portals.complaint_scraper import fetch_complaint_status
+from portals.bbmp_complaint import raise_complaint
 
 scrape_bp = Blueprint(
     "scrape",

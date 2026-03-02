@@ -1,7 +1,7 @@
 # portals/services/bbmp_login.py
 
 from playwright.sync_api import TimeoutError
-from portals.services.captcha_solver import solve_captcha
+from portals.captcha_solver import solve_captcha
 import traceback
 
 def check_user_logged_in(page):

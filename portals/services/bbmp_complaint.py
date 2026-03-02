@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright, TimeoutError
 import traceback
 import re
 
-def raise_complaint(category, subcategory, description, image_path, latitude, longitude, use_other_location):
+def raise_complaint(category, subcategory, description, image_path, latitude, longitude):
     try:
         print("Launching browser...")
         with sync_playwright() as p:

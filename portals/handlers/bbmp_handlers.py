@@ -61,9 +61,11 @@ def handle_track_issue(action_data: dict, context: dict) -> tuple[bool, dict]:
         
     Returns:
         tuple[bool, dict]: (success, result_dict)
-        - On success: (True, {"data": result})
+        - On success: (True, {"data": {"status": ..., "meta_data": {...}}})
         - On failure: (False, {"error": error_message})
     """
+    import re
+    
     tracking_id = action_data.get("tracking_id")
     
     if not tracking_id:
@@ -74,7 +76,33 @@ def handle_track_issue(action_data: dict, context: dict) -> tuple[bool, dict]:
     if not result.get("success", False):
         return False, {"error": result.get("error", "Failed to fetch complaint status")}
     
-    return True, {"data": result}
+      
+    # Extract meta_data from staff_details
+    staff_details = result.get("staff_details", {})
+
+    # Map complaint status to a standardized status
+    status = staff_details["Grievance Status"]
+    
+    # Map staff fields
+    meta_data = {}
+
+    meta_data["remarks"] = staff_details["Staff Remarks"]
+    
+    # Extract staff name - look for common field names
+    staff_name_fields = ["Staff Name", "Assigned To", "Handler", "Assigned Officer"]
+    for field in staff_name_fields:
+        if field in staff_details and staff_details[field]:
+            meta_data["staff_name"] = staff_details[field]
+            break
+
+    meta_data["mobile_number"] = staff_details["Contact Details"]
+    
+    return True, {
+        "data": {
+            "status": status,
+            "meta_data": meta_data
+        }
+    }
 
 
 # ----------------------------

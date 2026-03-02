@@ -189,31 +189,34 @@ class ReportResponseSchema(Schema):
 
 
 class TrackMetaSchema(Schema):
-    """Schema for tracking metadata."""
-    remarks = fields.String(metadata={
-        "description": "Any remarks on the complaint"
+    """Schema for tracking metadata - contains staff info and remarks."""
+    remarks = fields.String(required=False, allow_none=True, metadata={
+        "description": "Any remarks on the complaint",
+        "example": "Issue resolved"
     })
-    staff_name = fields.String(metadata={
-        "description": "Name of staff handling the complaint"
+    staff_name = fields.String(required=False, allow_none=True, metadata={
+        "description": "Name of staff handling the complaint",
+        "example": "John Doe"
     })
-    mobile_number = fields.Integer(metadata={
-        "description": "Contact number"
+    mobile_number = fields.Integer(required=False, allow_none=True, metadata={
+        "description": "Contact number of the staff",
+        "example": 1234567890
     })
 
 
 class TrackResponseSchema(Schema):
-    """Schema for tracking response."""
+    """Schema for tracking response - returns status and metadata."""
     status = fields.String(
         required=True,
         validate=validate.OneOf([e.value for e in ComplaintStatusEnum]),
         metadata={
             "description": "Current status of the complaint",
-            "example": "OPEN",
+            "example": "CLOSED",
             "enum": [e.value for e in ComplaintStatusEnum]
         }
     )
-    meta_data = fields.Nested(TrackMetaSchema, metadata={
-        "description": "Additional metadata about the complaint"
+    meta_data = fields.Nested(TrackMetaSchema, required=False, allow_none=True, metadata={
+        "description": "Additional metadata about the complaint (staff info, remarks)"
     })
 
 

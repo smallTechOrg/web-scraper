@@ -35,14 +35,12 @@ def _parse_complaint_details(html: str) -> dict:
     if len(panels) < 2:
         raise ComplaintNotFound("Complaint details not found. Invalid ID?")
     
-    result["complaint_details"] = _extract_panel_data(panels[0])
+    # result["complaint_details"] = _extract_panel_data(panels[0])
     result["staff_details"] = _extract_panel_data(panels[1])
     
-    print(f"[DEBUG] Extracted complaint_details keys: {list(result['complaint_details'].keys())}")
+    # print(f"[DEBUG] Extracted complaint_details keys: {list(result['complaint_details'].keys())}")
     print(f"[DEBUG] Extracted staff_details keys: {list(result['staff_details'].keys())}")
 
-    if not result["complaint_details"]:
-        raise ComplaintNotFound("No complaint data extracted.")
     return result
 
 def fetch_complaint_status(complaint_id: str) -> dict:

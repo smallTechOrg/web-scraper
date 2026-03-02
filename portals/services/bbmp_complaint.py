@@ -119,33 +119,32 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             file_input.set_input_files(image_path)
 
             # ===== OTHER LOCATION =====
-            if use_other_location:
-                print("Selecting other location checkbox...")
-                checkbox = frame.locator("input[type='checkbox']")
-                checkbox.wait_for(state="visible", timeout=5000)
-                checkbox.check()
+            print("Selecting other location checkbox...")
+            checkbox = frame.locator("input[type='checkbox']")
+            checkbox.wait_for(state="visible", timeout=5000)
+            checkbox.check()
 
-                # ===== ADDRESS SEARCH (FIXED) =====
-                print("Filling address search with lat,lng...")
-                address_input = None
-                for sel in [
-                    "input#pac-inputnew",
-                    "input#pac-input",
-                    "input[placeholder='Address Search']"
-                ]:
-                    loc = frame.locator(sel)
-                    if loc.count() > 0:
-                        address_input = loc.first
-                        print(f"Found address input using selector: {sel}")
-                        break
+            # ===== ADDRESS SEARCH (FIXED) =====
+            print("Filling address search with lat,lng...")
+            address_input = None
+            for sel in [
+                "input#pac-inputnew",
+                "input#pac-input",
+                "input[placeholder='Address Search']"
+            ]:
+                loc = frame.locator(sel)
+                if loc.count() > 0:
+                    address_input = loc.first
+                    print(f"Found address input using selector: {sel}")
+                    break
 
-                if address_input is None:
-                    raise Exception("❌ Could not find address search input")
+            if address_input is None:
+                raise Exception("❌ Could not find address search input")
 
-                address_input.wait_for(state="visible", timeout=10000)
-                address_input.fill(f"{latitude}, {longitude}")
-                page.keyboard.press("Enter")
-                frame.wait_for_timeout(2000)
+            address_input.wait_for(state="visible", timeout=10000)
+            address_input.fill(f"{latitude}, {longitude}")
+            page.keyboard.press("Enter")
+            frame.wait_for_timeout(2000)
 
             # ===== SUBMIT =====
             print("Submitting complaint...")

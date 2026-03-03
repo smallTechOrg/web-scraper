@@ -9,7 +9,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
     try:
         print("Launching browser...")
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(headless=True)
             context = browser.new_context(storage_state="bbmp_auth.json")
             page = context.new_page()
 
@@ -188,8 +188,8 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             print("Waiting for submit confirmation popup...")
             popup_ok = page.locator("#popup_ok")
             popup_ok.wait_for(state="visible", timeout=15000)
-            # popup_ok.click()
-            # print("Clicked OK on confirmation popup.")
+            popup_ok.click()
+            print("Clicked OK on confirmation popup.")
 
             # ===== WAIT FOR ACK CONTENT (ROBUST) =====
             print("Waiting for acknowledgement content to appear...")

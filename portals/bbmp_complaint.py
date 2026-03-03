@@ -1,19 +1,50 @@
 # portals/services/bbmp_complaint.py
 
 from playwright.sync_api import sync_playwright, TimeoutError
+from portals.bbmp_login import login_user, check_user_logged_in
 import traceback
 import re
 
-def raise_complaint(category, subcategory, description, image_path, latitude, longitude, use_other_location):
+def raise_complaint(category, subcategory, description, image_path, latitude, longitude, mobile=None, password=None):
     try:
         print("Launching browser...")
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(headless=True)
             context = browser.new_context(storage_state="bbmp_auth.json")
             page = context.new_page()
 
             print("Opening BBMP portal...")
             page.goto("https://www.smartoneblr.com/BBMPServices.htm", timeout=60000)
+
+            # ===== CHECK SESSION VALIDITY =====
+            print("Checking session validity...")
+            page.wait_for_timeout(2000)  # Give page time to load fully
+            
+            if not check_user_logged_in(page):
+                print("Session is invalid or timed out!")
+                
+                if not mobile or not password:
+                    print("No credentials provided for re-login")
+                    browser.close()
+                    return False, "Session expired and no credentials provided for re-login"
+                
+                print("Attempting to re-login with provided credentials...")
+                
+                # Call login_user with existing page for in-place login
+                success, message = login_user(mobile, password, page)
+                
+                if not success:
+                    return False, f"Re-login failed: {message}"
+                
+                print("Re-login successful on same page...")
+                page.wait_for_timeout(2000)
+                
+                # Verify session is now valid
+                if not check_user_logged_in(page):
+                    browser.close()
+                    return False, "Session still invalid after re-login"
+            
+            print("Session is valid, proceeding with complaint...")
 
             print("Clicking Sahaya 2.0...")
             page.click("text=BBMP (SAHAYA 2.0)")
@@ -119,33 +150,32 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             file_input.set_input_files(image_path)
 
             # ===== OTHER LOCATION =====
-            if use_other_location:
-                print("Selecting other location checkbox...")
-                checkbox = frame.locator("input[type='checkbox']")
-                checkbox.wait_for(state="visible", timeout=5000)
-                checkbox.check()
+            print("Selecting other location checkbox...")
+            checkbox = frame.locator("input[type='checkbox']")
+            checkbox.wait_for(state="visible", timeout=5000)
+            checkbox.check()
 
-                # ===== ADDRESS SEARCH (FIXED) =====
-                print("Filling address search with lat,lng...")
-                address_input = None
-                for sel in [
-                    "input#pac-inputnew",
-                    "input#pac-input",
-                    "input[placeholder='Address Search']"
-                ]:
-                    loc = frame.locator(sel)
-                    if loc.count() > 0:
-                        address_input = loc.first
-                        print(f"Found address input using selector: {sel}")
-                        break
+            # ===== ADDRESS SEARCH (FIXED) =====
+            print("Filling address search with lat,lng...")
+            address_input = None
+            for sel in [
+                "input#pac-inputnew",
+                "input#pac-input",
+                "input[placeholder='Address Search']"
+            ]:
+                loc = frame.locator(sel)
+                if loc.count() > 0:
+                    address_input = loc.first
+                    print(f"Found address input using selector: {sel}")
+                    break
 
-                if address_input is None:
-                    raise Exception("❌ Could not find address search input")
+            if address_input is None:
+                raise Exception("❌ Could not find address search input")
 
-                address_input.wait_for(state="visible", timeout=10000)
-                address_input.fill(f"{latitude}, {longitude}")
-                page.keyboard.press("Enter")
-                frame.wait_for_timeout(2000)
+            address_input.wait_for(state="visible", timeout=10000)
+            address_input.fill(f"{latitude}, {longitude}")
+            page.keyboard.press("Enter")
+            frame.wait_for_timeout(2000)
 
             # ===== SUBMIT =====
             print("Submitting complaint...")

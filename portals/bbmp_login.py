@@ -1,19 +1,54 @@
 # portals/services/bbmp_login.py
 
-from playwright.sync_api import sync_playwright, TimeoutError
-from portals.services.captcha_solver import solve_captcha
+from playwright.sync_api import TimeoutError
+from portals.captcha_solver import solve_captcha
 import traceback
 
-def login_user(mobile: str, password: str):
+def check_user_logged_in(page):
+    """Check if the user is logged in by looking for logged-in indicators.
+    
+    Returns True if logged in, False otherwise.
+    """
     try:
-        print("Launching browser...")
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)  # keep visible while testing
-            context = browser.new_context()
-            page = context.new_page()
+        # Check for "Welcome" text which indicates logged-in state
+        welcome_element = page.locator("text=Welcome")
+        if welcome_element.count() > 0 and welcome_element.first.is_visible(timeout=3000):
+            print("✅ User is logged in (found Welcome text)")
+            return True
+        
+        # Check if Login/Register button is visible (not logged in)
+        login_button = page.locator("text=Login/Register")
+        if login_button.count() > 0 and login_button.first.is_visible(timeout=3000):
+            print("⚠️ User is not logged in (Login/Register button visible)")
+            return False
+            
+        print("⚠️ Login status unclear")
+        return False
+    except Exception as e:
+        print(f"⚠️ Error checking login status: {e}")
+        return False
 
-            print("Navigating to BBMP portal...")
-            page.goto("https://www.smartoneblr.com/BBMPServices.htm", timeout=60000)
+
+def login_user(mobile: str, password: str, page):
+    """Login to BBMP portal using an existing page.
+    
+    This function is always called by the complaint report, so it expects
+    a page object to be passed. Login happens on the same page without
+    opening a new browser.
+    
+    Args:
+        mobile: User's mobile number
+        password: User's password
+        page: Playwright page object (must be provided)
+    
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    try:
+        # Use existing page - navigate to BBMP portal if not already there
+        print("Using existing page for login...")
+        current_url = page.url
+        if "smartoneblr.com" in current_url:
 
             print("Clicking Login/Register button...")
             page.click("text=Login/Register")
@@ -50,7 +85,7 @@ def login_user(mobile: str, password: str):
                 # Try to screenshot the body or img element inside frame
                 try:
                     captcha_frame.locator("img").screenshot(path=captcha_path)
-                except:
+                except Exception:
                     # Fallback to body screenshot if img element not found
                     captcha_frame.locator("body").screenshot(path=captcha_path)
                 
@@ -116,10 +151,9 @@ def login_user(mobile: str, password: str):
                         for i in range(min(count, 5)):
                             try:
                                 input_elem = all_inputs.nth(i)
-                                input_html = input_elem.inner_html()
                                 input_attrs = input_elem.get_attribute("outerHTML")
                                 print(f"Input {i}: {input_attrs}")
-                            except:
+                            except Exception:
                                 pass
                         
                         raise Exception("Cannot find captcha input element!")
@@ -169,13 +203,13 @@ def login_user(mobile: str, password: str):
                         page.wait_for_timeout(800)
 
             if not success:
-                browser.close()
                 return False, "Captcha solving failed after retries"
 
             print("Saving session state to bbmp_auth.json ...")
+            # Get context from page and save auth state
+            context = page.context
             context.storage_state(path="bbmp_auth.json")
 
-            browser.close()
             return True, "Login successful (captcha auto-solved)"
 
     except TimeoutError:
@@ -187,3 +221,6 @@ def login_user(mobile: str, password: str):
         print("🔥 Exception during login:")
         traceback.print_exc()
         return False, f"Error: {str(e)}"
+
+    # Fallback return - should not reach here
+    return False, "Unknown error in login_user"

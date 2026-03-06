@@ -22,7 +22,7 @@ scrape_bp = Blueprint(
 # ----------------------------
 # Endpoint
 # ---------------------------- 
-@scrape_bp.route("/")
+@scrape_bp.route("")
 class ScrapeAPI(MethodView):
     """
     Scrape API Endpoint

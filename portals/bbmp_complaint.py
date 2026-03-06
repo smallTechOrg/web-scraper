@@ -1,5 +1,6 @@
 # portals/services/bbmp_complaint.py
 
+import os
 from playwright.sync_api import sync_playwright, TimeoutError
 from portals.bbmp_login import login_user, check_user_logged_in
 import traceback
@@ -10,7 +11,12 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
         print("Launching browser...")
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            context = browser.new_context(storage_state="bbmp_auth.json")
+            if os.path.exists("bbmp_auth.json"):
+                print("Loading existing session from bbmp_auth.json")
+                context = browser.new_context(storage_state="bbmp_auth.json")
+            else:
+                print("No existing session, starting fresh context")
+                context = browser.new_context()
             page = context.new_page()
 
             print("Opening BBMP portal...")

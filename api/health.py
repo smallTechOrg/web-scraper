@@ -16,7 +16,7 @@ class HealthResponseSchema(Schema):
     message = fields.String(required=True)
 
 # -- Health check endpoint --
-@health_bp.route("/", methods=["GET"])
+@health_bp.route("", methods=["GET"])
 class HealthCheck(MethodView):
     @health_bp.response(200, HealthResponseSchema)
     def get(self):

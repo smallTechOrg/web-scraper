@@ -5,6 +5,7 @@ from playwright.sync_api import sync_playwright, TimeoutError
 from portals.bbmp_login import login_user, check_user_logged_in
 import traceback
 import re
+from utils.image_download import get_image_file
 
 def raise_complaint(category, subcategory, description, image_path, latitude, longitude, mobile=None, password=None):
     try:
@@ -137,6 +138,9 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
 
             # ===== IMAGE UPLOAD =====
             print("Uploading image...")
+
+            # image_ref can be a local path or an HTTPS URL
+            resolved_image_path = get_image_file(image_path)
             file_input = None
             for sel in [
                 "input#docOthFileName0",
@@ -153,7 +157,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
                 raise Exception("❌ Could not find correct file input element")
 
             file_input.wait_for(state="attached", timeout=10000)
-            file_input.set_input_files(image_path)
+            file_input.set_input_files(resolved_image_path)
 
             # ===== OTHER LOCATION =====
             print("Selecting other location checkbox...")

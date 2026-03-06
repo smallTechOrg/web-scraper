@@ -1,0 +1,15 @@
+BeautifulSoup4
+requests
+playwright
+ruff
+python-dotenv
+flask
+flask-cors
+flask-smorest
+marshmallow
+flask_swagger_ui
+pytest
+pytest-html
+pillow 
+opencv-python 
+easyocr

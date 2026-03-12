@@ -40,7 +40,7 @@ def get_handlers() -> list[tuple]:
 # Import portal service functions
 from portals.complaint_scraper import fetch_complaint_status
 from portals.bbmp_complaint import raise_complaint
-
+from portals.events import fetch_events
 
 # ----------------------------
 # TRACK ISSUE HANDLER
@@ -152,3 +152,16 @@ def handle_report_issue(action_data: dict, context: dict) -> tuple[bool, dict]:
     
     error_message = result if isinstance(result, str) else result.get("error", "Failed to raise complaint")
     return False, {"error": error_message}
+
+@register_handler(
+    source="EVENT_PORTAL",
+    portal="TEAMEVEREST",
+    action_type="FETCH_EVENTS",
+    description="Report/submit a new complaint"
+)
+def handle_report_issue(action_data: dict, context: dict) -> tuple[bool, dict]:
+    
+    return True, {
+        "data": fetch_events()
+    }
+ 

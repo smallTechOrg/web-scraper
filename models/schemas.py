@@ -169,6 +169,8 @@ class ScrapeRequestSchema(Schema):
             errors = ReportIssueDataSchema().validate(action_data)
         elif action_type == ActionTypeEnum.TRACK_ISSUE.value:
             errors = TrackIssueDataSchema().validate(action_data)
+        elif action_type == ActionTypeEnum.FETCH_EVENTS.value:
+            errors = TrackIssueDataSchema().validate(action_data)
         else:
             errors = {"type": ["Invalid action type"]}
 

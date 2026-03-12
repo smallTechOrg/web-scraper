@@ -92,13 +92,16 @@ source venv/bin/activate
 ### Install dependencies and playwright
 After activating your virtual environment, install dependencies by
 
+Might take time to install
+
 ```bash
 pip install -r requirements.txt
 ```
 Install playwright using
 
 ```bash
-python -m playwright install
+
+python -m playwright install --with-deps chromium
 ```
 
 ## Run Flask to render frontend

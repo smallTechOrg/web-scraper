@@ -90,11 +90,10 @@ class ScrapeAPI(MethodView):
         action_data = action["data"]
 
         # Validate supported source
-        if source != SourceEnum.GOV_ISSUE_PORTAL.value:
+        if source != SourceEnum.GOV_ISSUE_PORTAL.value and source != SourceEnum.EVENT_PORTAL.value:
             raise ValidationError("Unsupported source")
-
         # Validate supported portal
-        if portal != PortalEnum.SMARTONEBLR.value:
+        if portal != PortalEnum.SMARTONEBLR.value and portal != PortalEnum.TEAMEVEREST.value:
             raise ValidationError("Unsupported portal")
 
         # Validate action type is supported by checking if handler exists

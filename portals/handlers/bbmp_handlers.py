@@ -157,11 +157,13 @@ def handle_report_issue(action_data: dict, context: dict) -> tuple[bool, dict]:
     source="EVENT_PORTAL",
     portal="TEAMEVEREST",
     action_type="FETCH_EVENTS",
-    description="Report/submit a new complaint"
+    description="Fetch all in-person events from TeamEverest portal"
 )
-def handle_report_issue(action_data: dict, context: dict) -> tuple[bool, dict]:
-    
-    return True, {
-        "data": fetch_events()
-    }
+def handle_fetch_events(action_data: dict, context: dict) -> tuple[bool, dict]:
+    category_filter = action_data.get("category_filter", "")
+    event_filter = action_data.get("event_filter", "")
+    result = fetch_events(category_filter=category_filter, event_filter=event_filter)
+    if "error" in result:
+        return False, {"error": result["error"]}
+    return True, {"data": result}
  

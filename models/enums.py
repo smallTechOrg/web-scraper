@@ -29,3 +29,16 @@ class ComplaintStatusEnum(str, Enum):
     OPEN = "OPEN"
     IN_PROGRESS = "IN_PROGRESS"
     CLOSED = "CLOSED"
+
+
+class EventTypeEnum(str, Enum):
+    """Event type categories for volunteering events."""
+    CLEANLINESS_DRIVE = "CLEANLINESS_DRIVE"
+    BEACH_CLEANUP = "BEACH_CLEANUP"
+    ROAD_CLEANUP = "ROAD_CLEANUP"
+    FOREST_CLEANUP = "FOREST_CLEANUP"
+    TREEPLANTATION = "TREEPLANTATION"
+    TREKANDPLOG = "TREKANDPLOG"
+    VOLUNTEERING = "VOLUNTEERING"
+    WORKSHOP = "WORKSHOP"
+    OTHER = "OTHER"

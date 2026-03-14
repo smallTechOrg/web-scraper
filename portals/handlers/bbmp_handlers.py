@@ -38,6 +38,7 @@ def get_handlers() -> list[tuple]:
 
 
 # Import portal service functions
+from models.enums import ComplaintStatusEnum
 from portals.complaint_scraper import fetch_complaint_status
 from portals.bbmp_complaint import raise_complaint
 from portals.events import fetch_events
@@ -81,7 +82,17 @@ def handle_track_issue(action_data: dict, context: dict) -> tuple[bool, dict]:
     staff_details = result.get("staff_details", {})
 
     # Map complaint status to a standardized status
-    status = staff_details["Grievance Status"]
+    status_map = {
+        "registered": ComplaintStatusEnum.OPEN,
+        "closed": ComplaintStatusEnum.CLOSED,
+    }
+
+    raw_status = staff_details["Grievance Status"].strip().lower()
+
+    if raw_status not in status_map:
+        raise ValueError(f"Unknown grievance status: {raw_status}")
+
+    status = status_map[raw_status]
     
     # Map staff fields
     meta_data = {}

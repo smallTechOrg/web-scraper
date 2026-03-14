@@ -27,7 +27,6 @@ class ActionTypeEnum(str, Enum):
 class ComplaintStatusEnum(str, Enum):
     """Status states for tracked complaints."""
     OPEN = "OPEN"
-    IN_PROGRESS = "IN_PROGRESS"
     CLOSED = "CLOSED"
 
 

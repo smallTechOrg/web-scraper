@@ -13,3 +13,4 @@ pytest-html
 pillow 
 opencv-python 
 easyocr
+langchain-groq

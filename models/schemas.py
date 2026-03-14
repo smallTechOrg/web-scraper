@@ -131,7 +131,7 @@ class ContextSchema(Schema):
     action = fields.Nested(ActionSchema, required=True, metadata={
         "description": "Action to perform on the portal"
     })
-    auth = fields.Nested(AuthSchema, required=True, metadata={
+    auth = fields.Nested(AuthSchema, required=False, load_default=None, metadata={
         "description": "Authentication credentials for the portal"
     })
 
@@ -169,6 +169,8 @@ class ScrapeRequestSchema(Schema):
             errors = ReportIssueDataSchema().validate(action_data)
         elif action_type == ActionTypeEnum.TRACK_ISSUE.value:
             errors = TrackIssueDataSchema().validate(action_data)
+        elif action_type == ActionTypeEnum.FETCH_EVENTS.value:
+            errors = {}
         else:
             errors = {"type": ["Invalid action type"]}
 

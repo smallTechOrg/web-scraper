@@ -46,7 +46,7 @@ def _parse_complaint_details(html: str) -> dict:
 def fetch_complaint_status(complaint_id: str) -> dict:
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)  # <-- show browser for debugging
+            browser = p.chromium.launch(headless=False)  # <-- show browser for debugging
             context = browser.new_context()
             page = context.new_page()
 

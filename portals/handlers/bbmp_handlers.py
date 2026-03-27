@@ -42,6 +42,7 @@ from models.enums import ComplaintStatusEnum
 from portals.complaint_scraper import fetch_complaint_status
 from portals.bbmp_complaint import raise_complaint
 from portals.events import fetch_events
+from portals.mybharat_events import fetch_mybharat_events
 
 # ----------------------------
 # TRACK ISSUE HANDLER
@@ -171,10 +172,60 @@ def handle_report_issue(action_data: dict, context: dict) -> tuple[bool, dict]:
     description="Fetch all in-person events from TeamEverest portal"
 )
 def handle_fetch_events(action_data: dict, context: dict) -> tuple[bool, dict]:
-    category_filter = action_data.get("category_filter", "")
+    """
+    Handle fetch events action for TeamEverest portal.
+
+    Args:
+        action_data: Optional filters — event_filter, category_filter
+        context: Full request context
+
+    Returns:
+        tuple[bool, dict]: (success, {"data": {"events": [...]}})
+    """
     event_filter = action_data.get("event_filter", "")
+    category_filter = action_data.get("category_filter", "")
+
     result = fetch_events(category_filter=category_filter, event_filter=event_filter)
+
     if "error" in result:
         return False, {"error": result["error"]}
+
     return True, {"data": result}
- 
+
+
+# ----------------------------
+# MY BHARAT FETCH EVENTS HANDLER
+# ----------------------------
+@register_handler(
+    source="EVENT_PORTAL",
+    portal="MYBHARATGOVIN",
+    action_type="FETCH_EVENTS",
+    description="Fetch Civic Engagement events from MY Bharat portal"
+)
+def handle_fetch_mybharat_events(action_data: dict, context: dict) -> tuple[bool, dict]:
+    """
+    Handle fetch events action for MY Bharat Gov.in portal.
+
+    Fetches events from https://mybharat.gov.in/pages/events filtered by
+    specialization "Civic Engagement". Optionally applies LLM-based filtering
+    using event_filter / category_filter from action_data.
+
+    Args:
+        action_data: Optional filters — event_filter, category_filter
+        context: Full request context
+
+    Returns:
+        tuple[bool, dict]: (success, {"data": {"events": [...]}})
+    """
+    event_filter = action_data.get("event_filter", "")
+    category_filter = action_data.get("category_filter", "")
+
+    result = fetch_mybharat_events(
+        category_filter=category_filter,
+        event_filter=event_filter,
+    )
+
+    if "error" in result:
+        return False, {"error": result["error"]}
+
+    return True, {"data": result}

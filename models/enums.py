@@ -15,6 +15,7 @@ class PortalEnum(str, Enum):
     """Portal identifiers for different complaint systems."""
     SMARTONEBLR = "SMARTONEBLR"
     TEAMEVEREST = "TEAMEVEREST"
+    MYBHARATGOVIN = "MYBHARATGOVIN"
 
 
 class ActionTypeEnum(str, Enum):

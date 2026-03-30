@@ -16,6 +16,7 @@ class PortalEnum(str, Enum):
     SMARTONEBLR = "SMARTONEBLR"
     TEAMEVEREST = "TEAMEVEREST"
     MYBHARATGOVIN = "MYBHARATGOVIN"
+    IVOLUNTEERIN = "IVOLUNTEERIN"
 
 
 class ActionTypeEnum(str, Enum):

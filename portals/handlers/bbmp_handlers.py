@@ -43,6 +43,7 @@ from portals.complaint_scraper import fetch_complaint_status
 from portals.bbmp_complaint import raise_complaint
 from portals.events import fetch_events
 from portals.mybharat_events import fetch_mybharat_events
+from portals.ivolunteer_events import fetch_ivolunteer_events
 
 # ----------------------------
 # TRACK ISSUE HANDLER
@@ -221,6 +222,40 @@ def handle_fetch_mybharat_events(action_data: dict, context: dict) -> tuple[bool
     category_filter = action_data.get("category_filter", "")
 
     result = fetch_mybharat_events(
+        category_filter=category_filter,
+        event_filter=event_filter,
+    )
+
+    if "error" in result:
+        return False, {"error": result["error"]}
+
+    return True, {"data": result}
+
+
+# ----------------------------
+# IVOLUNTEER FETCH EVENTS HANDLER
+# ----------------------------
+@register_handler(
+    source="EVENT_PORTAL",
+    portal="IVOLUNTEERIN",
+    action_type="FETCH_EVENTS",
+    description="Fetch volunteering opportunities from iVolunteer.in"
+)
+def handle_fetch_ivolunteer_events(action_data: dict, context: dict) -> tuple[bool, dict]:
+    """
+    Handle fetch events action for iVolunteer.in portal.
+
+    Args:
+        action_data: Optional filters — event_filter, category_filter
+        context: Full request context
+
+    Returns:
+        tuple[bool, dict]: (success, {"data": {"events": [...]}})
+    """
+    event_filter = action_data.get("event_filter", "")
+    category_filter = action_data.get("category_filter", "")
+
+    result = fetch_ivolunteer_events(
         category_filter=category_filter,
         event_filter=event_filter,
     )

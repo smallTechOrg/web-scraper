@@ -93,7 +93,7 @@ class ScrapeAPI(MethodView):
         if source != SourceEnum.GOV_ISSUE_PORTAL.value and source != SourceEnum.EVENT_PORTAL.value:
             raise ValidationError("Unsupported source")
         # Validate supported portal
-        if portal != PortalEnum.SMARTONEBLR.value and portal != PortalEnum.TEAMEVEREST.value:
+        if portal not in {PortalEnum.SMARTONEBLR.value, PortalEnum.TEAMEVEREST.value, PortalEnum.MYBHARATGOVIN.value, PortalEnum.IVOLUNTEERIN.value}:
             raise ValidationError("Unsupported portal")
 
         # Validate action type is supported by checking if handler exists

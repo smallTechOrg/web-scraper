@@ -11,7 +11,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
     try:
         print("Launching browser...")
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=False)
             if os.path.exists("bbmp_auth.json"):
                 print("Loading existing session from bbmp_auth.json")
                 context = browser.new_context(storage_state="bbmp_auth.json")
@@ -110,8 +110,29 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             if len(options) <= 1:
                 raise Exception("❌ Subcategory dropdown did not populate")
 
-            print("Selecting subcategory...")
-            sub_select.select_option(label=subcategory)
+            # Print available subcategories (text + value when possible)
+            option_details = sub_select.locator("option").evaluate_all(
+                "options => options.map(o => ({value: o.value, text: o.innerText.trim()}))"
+            )
+            print("Available subcategories:")
+            for od in option_details:
+                print(f"- {od['text']} (value={od['value']})")
+
+            # Normalize subcategory: strip whitespace and match case-insensitively
+            subcategory_normalized = subcategory.strip().lower()
+            matched_option = next(
+                (od for od in option_details if od["text"].strip().lower() == subcategory_normalized and od["value"]),
+                None
+            )
+            if matched_option is None:
+                available = [od["text"] for od in option_details if od["value"]]
+                raise Exception(f"❌ Subcategory '{subcategory}' not found. Available: {available}")
+
+            print(f"Selecting subcategory '{matched_option['text']}' (value={matched_option['value']})...")
+            # Select2 widgets hide the native <select>; select by value then dispatch change
+            sub_select.select_option(value=matched_option["value"])
+            sub_select.dispatch_event("change")
+            frame.wait_for_timeout(1000)
 
             # ===== DESCRIPTION =====
             print("Locating description input...")
@@ -158,6 +179,12 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
 
             file_input.wait_for(state="attached", timeout=10000)
             file_input.set_input_files(resolved_image_path)
+            file_input.dispatch_event("change")
+            file_input.dispatch_event("input")
+            frame.wait_for_timeout(2000)
+            file_input.dispatch_event("change")
+            file_input.dispatch_event("input")
+            frame.wait_for_timeout(2000)
 
             # ===== OTHER LOCATION =====
             print("Selecting other location checkbox...")
@@ -197,14 +224,14 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             # ===== HANDLE CUSTOM POPUP =====
             print("Waiting for submit confirmation popup...")
             popup_ok = page.locator("#popup_ok")
-            popup_ok.wait_for(state="visible", timeout=15000)
+            popup_ok.wait_for(state="visible", timeout=10000)
             popup_ok.click()
             print("Clicked OK on confirmation popup.")
 
             # ===== WAIT FOR ACK CONTENT (ROBUST) =====
             print("Waiting for acknowledgement content to appear...")
             page.wait_for_selector("h5.mainHeading:has-text('Complaint Registration Acknowledgement')", timeout=60000)
-            page.wait_for_selector("p.text-left", timeout=60000)
+            page.wait_for_selector("p.text-left", timeout=10000)
             print("Acknowledgement page detected.")
 
             # ===== EXTRACT COMPLAINT ID + TIMESTAMP =====
@@ -227,7 +254,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             print("🕒 Timestamp:", timestamp)
 
             print("just waiting a bit before closing browser...")
-            page.wait_for_timeout(60_000)  # 60 seconds
+            page.wait_for_timeout(10_000)  # 60 seconds
 
             browser.close()
             return True, {

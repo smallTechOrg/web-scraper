@@ -73,12 +73,15 @@ cd web-scraper-boilerplate
 apt install python3.12-venv
 python3 -m venv venv
 
+# Activate venv
+source venv/bin/activate
+
 # Install pytorch with no cpu (part of easyocr)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 # Install easyocr
 pip install easyocr
 
-for opencv, system depency
+for opencv, system dependency
 sudo apt install libgl1
 
 # Install playwright with system dependecies
@@ -90,17 +93,23 @@ python -m playwright install --with-deps chromium
 
 ## Step 8: Run the Application
 
+```bash
+# If already running, stop current scraper
+pkill -f "/opt/web-scraper-boilerplate"
 
+export FLASK_APP=app.py
+nohup flask run --host=0.0.0.0 --port=5001 > flask.log 2>&1 &
+```
 ---
 
 ## Step 9: Verify the Application is Running
 
 ```bash
 # Check application health endpoint
-curl http://localhost:8080/actuator/health
+curl http://localhost:5001/api/health
 
-# Check OpenAPI docs (if not in firewall-restricted environment)
-curl http://localhost:8080/v1/api-docs
+# For exposes OpenAPI docs
+curl http://localhost:5001/docs
 ```
 
 ---
@@ -111,7 +120,7 @@ For production setup with load balancer integration, see [infrastructure.md](inf
 - Firewall rules for health checks
 - Instance group configuration
 - Backend service setup
-- Load balancer path routing for `/local/*`
+- Load balancer path routing for `/webscraperstaging/*`
 - SSL/TLS configuration
 - Monitoring and troubleshooting
 
@@ -119,27 +128,10 @@ For production setup with load balancer integration, see [infrastructure.md](inf
 
 ```bash
 # Test application is accessible via load balancer
-curl https://staging.api.smalltech.com/scrape/api/health
-
-# Check backend health
-gcloud compute backend-services get-health hashtaglocal-backend --global
+curl https://staging.api.smalltech.com/webscraperstaging/api/health
 ```
 
 ---
-
-## Additional Commands
-
-### Stop the Application
-
-```bash
-sudo systemctl stop hashtaglocal-backend
-```
-
-### Restart the Application
-
-```bash
-sudo systemctl restart hashtaglocal-backend
-```
 
 
 # VM Commands 
@@ -149,16 +141,3 @@ For memory
 free | grep Mem | awk '{print $3/$2 * 100.0"%"}'
 df -h
 ```
-
----
-
-## Monitoring
-
-Consider setting up monitoring via Google Cloud Monitoring or similar tools:
-
-- Monitor CPU/Memory usage
-- Track application logs
-- Set up alerts for service failures
-- Monitor database performance
-
----

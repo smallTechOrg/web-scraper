@@ -81,11 +81,15 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 # Install easyocr
 pip install easyocr
 
-for opencv, system dependency
+# for opencv, system dependency
 sudo apt install libgl1
 
+
 # Install playwright with system dependecies
+pip install playwright
 python -m playwright install --with-deps chromium
+
+pip install -r requirements.txt
 
 ```
 

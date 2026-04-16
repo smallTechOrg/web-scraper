@@ -11,7 +11,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
     try:
         print("Launching browser...")
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True, args=["--disable-dev-shm-usage", "--no-sandbox", "--disable-gpu"])
             if os.path.exists("bbmp_auth.json"):
                 print("Loading existing session from bbmp_auth.json")
                 context = browser.new_context(storage_state="bbmp_auth.json")

@@ -1,43 +1,70 @@
-# portals/services/captcha_solver.py
-
-import easyocr
+import os
 import cv2
+import easyocr
 
-_reader = None
+# 🔥 Reduce CPU threads (helps memory too)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
-def _get_reader():
-    global _reader
-    if _reader is None:
-        # CPU only
-        _reader = easyocr.Reader(['en'], gpu=False)
-    return _reader
+# ✅ Load EasyOCR ONCE (global)
+print("🔄 Loading EasyOCR model (one-time)...")
+reader = easyocr.Reader(
+    ['en'],
+    gpu=False,
+    verbose=False,
+    quantize=True,
+)
+print("✅ EasyOCR loaded")
+
 
 def solve_captcha(image_path: str) -> str:
     """
-    Reads captcha text from an image using EasyOCR (CPU).
+    Optimized OCR (low memory, no multiprocessing)
     """
-    img = cv2.imread(image_path)
-    if img is None:
+
+    try:
+        img = cv2.imread(image_path)
+        if img is None:
+            return ""
+
+        # Convert to grayscale
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # ⚠️ Reduce scaling (was 2x → now 1.2x)
+        gray = cv2.resize(
+            gray,
+            None,
+            fx=1.2,
+            fy=1.2,
+            interpolation=cv2.INTER_LINEAR
+        )
+
+        # Threshold
+        _, thresh = cv2.threshold(
+            gray,
+            150,
+            255,
+            cv2.THRESH_BINARY
+        )
+
+        # OCR
+        results = reader.readtext(thresh, detail=0)
+
+        if not results:
+            return ""
+
+        captcha_text = ''.join(results).strip()
+
+        # Clean non-alphanumeric
+        cleaned_text = ''.join(c for c in captcha_text if c.isalnum())
+
+        # 🔥 Explicit cleanup (important on small RAM)
+        del img
+        del gray
+        del thresh
+
+        return cleaned_text if cleaned_text else captcha_text
+
+    except Exception as e:
+        print("🔥 OCR error:", str(e))
         return ""
-
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Upscale for better OCR
-    gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-
-    # Simple thresholding
-    _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
-
-    reader = _get_reader()
-    results = reader.readtext(thresh, detail=0)
-
-    if not results:
-        return ""
-
-    # Join all detected text and clean it
-    captcha_text = ''.join(results).strip()
-    
-    # Remove any special characters that might interfere, keep only alphanumeric
-    cleaned_text = ''.join(c for c in captcha_text if c.isalnum())
-    
-    return cleaned_text if cleaned_text else captcha_text

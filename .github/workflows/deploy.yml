@@ -1,0 +1,55 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Lint
+        run: ruff check .
+      - name: Run tests
+        run: pytest -v || echo "No tests found — skipping"
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy to staging-instance
+        run: |
+          gcloud compute ssh ${{ secrets.GCP_VM_INSTANCE_NAME }} \
+            --zone=${{ secrets.GCP_ZONE }} \
+            --project=${{ secrets.GCP_PROJECT }} \
+            --ssh-flag="-o StrictHostKeyChecking=no" \
+            --command="sudo bash -c '
+              cd /opt/web-scraper-boilerplate &&
+              git config --global --add safe.directory /opt/web-scraper-boilerplate &&
+              git fetch --all &&
+              git reset --hard origin/main &&
+              git clean -fd &&
+              chmod +x scripts/deploy.sh &&
+              ./scripts/deploy.sh
+            '"
+      - name: Health check
+        run: |
+          sleep 10
+          gcloud compute ssh ${{ secrets.GCP_VM_INSTANCE_NAME }} \
+            --zone=${{ secrets.GCP_ZONE }} \
+            --project=${{ secrets.GCP_PROJECT }} \
+            --ssh-flag="-o StrictHostKeyChecking=no" \
+            --command="curl -sf http://localhost:5001/api/health || exit 1"

@@ -19,6 +19,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
                 print("No existing session, starting fresh context")
                 context = browser.new_context()
             page = context.new_page()
+            page.route("**polyfill.io**", lambda route: route.abort())
 
             print("Opening BBMP portal...")
             page.goto("https://www.smartoneblr.com/BBMPServices.htm", timeout=60000)

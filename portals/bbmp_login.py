@@ -12,13 +12,13 @@ def check_user_logged_in(page):
     try:
         # Check for "Welcome" text which indicates logged-in state
         welcome_element = page.locator("text=Welcome")
-        if welcome_element.count() > 0 and welcome_element.first.is_visible(timeout=3000):
+        if welcome_element.count() > 0 and welcome_element.first.is_visible(timeout=60000):
             print("✅ User is logged in (found Welcome text)")
             return True
         
         # Check if Login/Register button is visible (not logged in)
         login_button = page.locator("text=Login/Register")
-        if login_button.count() > 0 and login_button.first.is_visible(timeout=3000):
+        if login_button.count() > 0 and login_button.first.is_visible(timeout=60000):
             print("⚠️ User is not logged in (Login/Register button visible)")
             return False
             
@@ -56,7 +56,7 @@ def login_user(mobile: str, password: str, page):
             # Pick the modal that actually contains the login form
             print("Waiting for login modal to appear...")
             login_modal = page.locator(".modal-dialog.modal-sm", has=page.locator("#username"))
-            login_modal.wait_for(state="visible", timeout=15000)
+            login_modal.wait_for(state="visible", timeout=60000)
             print("Login modal is visible.")
 
             print("Filling Mobile Number...")
@@ -80,7 +80,7 @@ def login_user(mobile: str, password: str, page):
                 captcha_frame = login_modal.frame_locator("#image")
                 
                 # Wait for the frame to be loaded
-                captcha_frame.locator("body").wait_for(state="visible", timeout=5000)
+                captcha_frame.locator("body").wait_for(state="visible", timeout=60000)
                 
                 # Try to screenshot the body or img element inside frame
                 try:
@@ -115,7 +115,7 @@ def login_user(mobile: str, password: str, page):
                 
                 # Check if it exists, if not try alternative selector
                 try:
-                    captcha_input.wait_for(state="visible", timeout=3000)
+                    captcha_input.wait_for(state="visible", timeout=60000)
                     print("✓ Found input[name='WordVerification']")
                 except TimeoutError:
                     print("✗ WordVerification input not found")
@@ -135,7 +135,7 @@ def login_user(mobile: str, password: str, page):
                         print(f"Trying selector: {selector}...")
                         temp_input = modal_body.locator(selector)
                         try:
-                            temp_input.wait_for(state="visible", timeout=2000)
+                            temp_input.wait_for(state="visible", timeout=60000)
                             print(f"✓ Found with selector: {selector}")
                             captcha_input = temp_input
                             break
@@ -179,21 +179,21 @@ def login_user(mobile: str, password: str, page):
                 sign_in_button.scroll_into_view_if_needed()
                 
                 # Wait for button to be enabled and clickable
-                sign_in_button.wait_for(state="visible", timeout=5000)
+                sign_in_button.wait_for(state="visible", timeout=60000)
                 page.wait_for_timeout(200)  # Brief delay to ensure captcha is fully processed
                 
                 sign_in_button.click()
 
                 print("Waiting for login success indicator...")
                 try:
-                    page.wait_for_selector("text=Welcome", timeout=8000)
+                    page.wait_for_selector("text=Welcome", timeout=60000)
                     print("✅ Login successful!")
                     success = True
                     break
                 except TimeoutError:
                     # Check if we're still on login form or if modal closed
                     try:
-                        login_modal.wait_for(state="hidden", timeout=2000)
+                        login_modal.wait_for(state="hidden", timeout=60000)
                         print("✅ Modal closed, assuming login successful!")
                         success = True
                         break

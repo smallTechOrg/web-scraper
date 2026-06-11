@@ -255,7 +255,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             print("🕒 Timestamp:", timestamp)
 
             print("just waiting a bit before closing browser...")
-            page.wait_for_timeout(10_000)  # 60 seconds
+            page.wait_for_timeout(2000)
 
             browser.close()
             return True, {

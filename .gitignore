@@ -9,3 +9,4 @@ bbmp_auth.json
 captcha.png
 
 .env
+.claude/

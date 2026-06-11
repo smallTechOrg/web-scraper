@@ -51,7 +51,7 @@ def fetch_complaint_status(complaint_id: str) -> dict:
             page = context.new_page()
 
             print(f"[DEBUG] Opening URL: {SMARTONE_URL}")
-            page.goto(SMARTONE_URL, timeout=30000)
+            page.goto(SMARTONE_URL, timeout=60000)
 
             print(f"[DEBUG] Filling complaint ID: {complaint_id}")
             page.fill("#complainantNo", complaint_id)
@@ -63,7 +63,7 @@ def fetch_complaint_status(complaint_id: str) -> dict:
             print("[DEBUG] Waiting for complaint details panel to appear")
             page.wait_for_selector(
                 f"div.panel.panel-primary:nth-of-type(1) div.col-sm-6:has-text('{complaint_id}')",
-                timeout=15000
+                timeout=60000
             )
 
             html = page.content()

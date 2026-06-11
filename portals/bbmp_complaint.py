@@ -77,7 +77,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             # ===== CATEGORY =====
             print("Selecting category...")
             cat_select = frame.locator("select#typeId")
-            cat_select.wait_for(state="visible", timeout=20000)
+            cat_select.wait_for(state="visible", timeout=60000)
             cat_select.select_option(label=category)
             cat_select.dispatch_event("change")
             cat_select.dispatch_event("input")
@@ -98,7 +98,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
                     raise Exception("❌ Could not find subcategory dropdown")
                 sub_select = all_selects.nth(1)
 
-            sub_select.wait_for(state="attached", timeout=15000)
+            sub_select.wait_for(state="attached", timeout=60000)
 
             print("Waiting for subcategory options to load...")
             for _ in range(15):
@@ -154,7 +154,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             if desc_input is None:
                 raise Exception("❌ Could not find description input field")
 
-            desc_input.wait_for(state="attached", timeout=10000)
+            desc_input.wait_for(state="attached", timeout=60000)
             desc_input.scroll_into_view_if_needed()
             desc_input.fill(description)
 
@@ -178,7 +178,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             if file_input is None:
                 raise Exception("❌ Could not find correct file input element")
 
-            file_input.wait_for(state="attached", timeout=10000)
+            file_input.wait_for(state="attached", timeout=60000)
             file_input.set_input_files(resolved_image_path)
             file_input.dispatch_event("change")
             file_input.dispatch_event("input")
@@ -190,7 +190,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             # ===== OTHER LOCATION =====
             print("Selecting other location checkbox...")
             checkbox = frame.locator("input[type='checkbox']")
-            checkbox.wait_for(state="visible", timeout=5000)
+            checkbox.wait_for(state="visible", timeout=60000)
             checkbox.check()
 
             # ===== ADDRESS SEARCH (FIXED) =====
@@ -210,7 +210,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             if address_input is None:
                 raise Exception("❌ Could not find address search input")
 
-            address_input.wait_for(state="visible", timeout=10000)
+            address_input.wait_for(state="visible", timeout=60000)
             address_input.fill(f"{latitude}, {longitude}")
             page.keyboard.press("Enter")
             frame.wait_for_timeout(2000)
@@ -218,21 +218,21 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             # ===== SUBMIT =====
             print("Submitting complaint...")
             submit_btn = frame.locator("button:has-text('Submit')")
-            submit_btn.wait_for(state="visible", timeout=15000)
+            submit_btn.wait_for(state="visible", timeout=60000)
             submit_btn.scroll_into_view_if_needed()
             submit_btn.click()
 
             # ===== HANDLE CUSTOM POPUP =====
             print("Waiting for submit confirmation popup...")
             popup_ok = page.locator("#popup_ok")
-            popup_ok.wait_for(state="visible", timeout=10000)
+            popup_ok.wait_for(state="visible", timeout=60000)
             popup_ok.click()
             print("Clicked OK on confirmation popup.")
 
             # ===== WAIT FOR ACK CONTENT (ROBUST) =====
             print("Waiting for acknowledgement content to appear...")
             page.wait_for_selector("h5.mainHeading:has-text('Complaint Registration Acknowledgement')", timeout=60000)
-            page.wait_for_selector("p.text-left", timeout=10000)
+            page.wait_for_selector("p.text-left", timeout=60000)
             print("Acknowledgement page detected.")
 
             # ===== EXTRACT COMPLAINT ID + TIMESTAMP =====
@@ -255,7 +255,7 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             print("🕒 Timestamp:", timestamp)
 
             print("just waiting a bit before closing browser...")
-            page.wait_for_timeout(10_000)  # 60 seconds
+            page.wait_for_timeout(2000)
 
             browser.close()
             return True, {
@@ -266,6 +266,11 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
     except TimeoutError:
         print("⏰ Timeout during complaint submission")
         traceback.print_exc()
+        try:
+            page.screenshot(path="timeout_failure.png", full_page=True)
+            print("📸 Screenshot saved to timeout_failure.png")
+        except Exception:
+            pass
         return False, "Timeout while submitting complaint"
 
     except Exception as e:

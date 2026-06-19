@@ -7,11 +7,11 @@ from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
 from curl_cffi import requests
-from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage
 
-from config import GROQ_API_KEY, GROQ_MODEL_NAME
 from models.enums import EventTypeEnum
+from portals.llm_client import fetch_existing_links, invoke_llm
+from utils.url_utils import strip_utm_params
 
 IVOLUNTEER_BASE_URL = "https://www.ivolunteer.in"
 
@@ -72,7 +72,6 @@ def _detect_batch_with_llm(
     )
 
     try:
-        llm = ChatGroq(groq_api_key=GROQ_API_KEY, model_name=GROQ_MODEL_NAME)
         prompt_content = (
             _LLM_BATCH_PROMPT
             .replace("{event_types}", ", ".join(_EVENT_TYPE_VALUES))
@@ -80,7 +79,7 @@ def _detect_batch_with_llm(
             .replace("{category_filter}", category_filter)
             .replace("{events_batch}", batch_block)
         )
-        response = llm.invoke([SystemMessage(content=prompt_content)])
+        response = invoke_llm([SystemMessage(content=prompt_content)])
         response_text = response.content.strip().strip("`").replace("json\n", "")
         print(f"[LLM-batch] Response length: {len(response_text)} chars")
         results = json.loads(response_text)
@@ -241,6 +240,14 @@ def _build_event_text(opp: dict) -> str:
     return "\n".join(parts)
 
 
+def _get_opp_link(opp: dict) -> str:
+    """Extract the opportunity URL (mirrors _parse_opportunity link logic)."""
+    link = opp.get("OccurrenceUrl") or ""
+    if link and not link.startswith("http"):
+        link = f"{IVOLUNTEER_BASE_URL}{link}"
+    return strip_utm_params(link)
+
+
 def _parse_opportunity(opp: dict) -> dict:
     """Transform a raw API opportunity into our standard event dict."""
     start_time = _parse_datetime(opp.get("StartDateTimeValue"))
@@ -249,6 +256,7 @@ def _parse_opportunity(opp: dict) -> dict:
     link = opp.get("OccurrenceUrl") or ""
     if link and not link.startswith("http"):
         link = f"{IVOLUNTEER_BASE_URL}{link}"
+    link = strip_utm_params(link)
 
     image = opp.get("ImageURL") or None
 
@@ -361,7 +369,7 @@ def _enrich_missing_addresses(
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def fetch_ivolunteer_events(category_filter: str = "", event_filter: str = "") -> dict:
+def fetch_ivolunteer_events(category_filter: str = "", event_filter: str = "", backend_url: str | None = None) -> dict:
     """
     Fetch volunteering opportunities from iVolunteer.in.
 
@@ -373,6 +381,7 @@ def fetch_ivolunteer_events(category_filter: str = "", event_filter: str = "") -
     Args:
         category_filter: Category keywords for LLM filtering
         event_filter: Event keywords for LLM filtering
+        backend_url: Calling backend's base URL, used to dedupe against its own database
 
     Returns:
         {"events": [list of event dicts]}
@@ -396,13 +405,20 @@ def fetch_ivolunteer_events(category_filter: str = "", event_filter: str = "") -
             seen_ids.add(sid)
             unique_opps.append(opp)
 
+        existing_links = fetch_existing_links("IVOLUNTEERIN", backend_url=backend_url)
         use_llm = bool(event_filter or category_filter)
         events = []
 
         if use_llm:
-            total = len(unique_opps)
+            # Skip opportunities already stored in the backend before sending to LLM
+            new_opps = [o for o in unique_opps if _get_opp_link(o) not in existing_links]
+            skipped = len(unique_opps) - len(new_opps)
+            if skipped:
+                print(f"[iVolunteer] Skipping {skipped} events already in database")
+
+            total = len(new_opps)
             for start in range(0, total, _BATCH_SIZE):
-                batch = unique_opps[start : start + _BATCH_SIZE]
+                batch = new_opps[start : start + _BATCH_SIZE]
                 batch_texts = [_build_event_text(o) for o in batch]
 
                 print(f"[LLM-batch] Processing opportunities {start + 1}-{start + len(batch)} of {total}")

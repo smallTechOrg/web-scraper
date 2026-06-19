@@ -1,3 +1,4 @@
+from flask import request
 from flask_smorest import Blueprint
 from flask.views import MethodView
 from marshmallow import ValidationError
@@ -88,6 +89,11 @@ class ScrapeAPI(MethodView):
         action = context["action"]
         action_type = action["type"]
         action_data = action["data"]
+
+        # Staging and production #local share this scraper deployment, so the caller's
+        # own base URL travels via header rather than a static env var — lets handlers
+        # (e.g. FETCH_EVENTS dedup) call back to the correct backend per request.
+        context["backend_url"] = request.headers.get("X-Backend-Url")
 
         # Validate supported source
         if source != SourceEnum.GOV_ISSUE_PORTAL.value and source != SourceEnum.EVENT_PORTAL.value:

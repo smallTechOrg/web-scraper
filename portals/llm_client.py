@@ -27,7 +27,6 @@ def invoke_llm(messages: list) -> object:
                 wait = _parse_retry_after(str(e), default=5.0 * (2 ** attempt))
                 print(f"[LLM] Rate limited, waiting {wait:.1f}s (attempt {attempt + 1})")
                 time.sleep(wait)
-                _last_call_time = time.time()
                 if attempt == 3:
                     raise
             else:
@@ -42,14 +41,13 @@ def _parse_retry_after(error_msg: str, default: float) -> float:
 def fetch_existing_links(portal: str, backend_url: str | None = None) -> set[str]:
     """Return the set of event links already stored in the backend for the given portal.
 
-    `backend_url` (passed per-request via the X-Backend-Url header — see api/web_scrap.py)
-    takes priority since staging and production #local share this scraper deployment and
-    each must dedupe against its own database. Falls back to the BACKEND_URL env var for
-    local/manual testing. Returns an empty set on failure or when neither is configured,
-    so callers can proceed without skipping anything.
+    `backend_url` is passed per-request via the X-Backend-Url header (validated against
+    ALLOWED_BACKEND_URLS — see api/web_scrap.py) since staging and production #local share
+    this scraper deployment and each must dedupe against its own database. Returns an empty
+    set on failure or when the header wasn't provided/valid, so callers can proceed without
+    skipping anything.
     """
-    from config import BACKEND_URL
-    url = backend_url or BACKEND_URL
+    url = backend_url
     if not url:
         return set()
     try:
@@ -63,6 +61,7 @@ def fetch_existing_links(portal: str, backend_url: str | None = None) -> set[str
             data = resp.json().get("data", [])
             print(f"[backend] {len(data)} existing links loaded for portal {portal}")
             return set(data)
+        print(f"[backend] Failed to fetch existing links for {portal}: HTTP {resp.status_code}")
     except Exception as e:
         print(f"[backend] Failed to fetch existing links for {portal}: {e}")
     return set()

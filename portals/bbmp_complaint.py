@@ -55,7 +55,11 @@ def raise_complaint(category, subcategory, description, image_path, latitude, lo
             print("Session is valid, proceeding with complaint...")
 
             print("Clicking Sahaya 2.0...")
-            page.click("text=BBMP (SAHAYA 2.0)")
+            # The link is a `javascript:` href that swaps in content rather than doing
+            # a normal page navigation, so Playwright's built-in post-click "wait for
+            # navigation" step has nothing to wait for and can stall until timeout.
+            # We already wait explicitly for the iframe/network below, so skip it.
+            page.click("text=BBMP (SAHAYA 2.0)", timeout=60000, no_wait_after=True)
 
             print("Waiting for Sahaya page to load...")
             page.wait_for_load_state("networkidle")

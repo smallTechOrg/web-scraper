@@ -5,11 +5,11 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from curl_cffi import requests
 from bs4 import BeautifulSoup
-from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage
 
-from config import GROQ_API_KEY, GROQ_MODEL_NAME
 from models.enums import EventTypeEnum
+from portals.llm_client import fetch_existing_links, invoke_llm
+from utils.url_utils import strip_utm_params
 
 TEAMEVEREST_BASE_URL = "https://www.teameverest.ngo"
 TEAMEVEREST_EVENTS_URL = f"{TEAMEVEREST_BASE_URL}/events"
@@ -45,7 +45,6 @@ def _detect_info_with_llm(page_text: str, event_filter: str, category_filter: st
     """Use Groq LLM to decide if event matches filter and classify its type."""
     _default = {"select_event": False, "type": EventTypeEnum.OTHER.value}
     try:
-        llm = ChatGroq(groq_api_key=GROQ_API_KEY, model_name=GROQ_MODEL_NAME)
         prompt_content = (
             _LLM_PROMPT
             .replace("{event_types}", ", ".join(_EVENT_TYPE_VALUES))
@@ -53,7 +52,7 @@ def _detect_info_with_llm(page_text: str, event_filter: str, category_filter: st
             .replace("{category_filter}", category_filter)
             .replace("{event_content}", page_text[:6000])  # cap to avoid token overflow
         )
-        response = llm.invoke([SystemMessage(content=prompt_content)])
+        response = invoke_llm([SystemMessage(content=prompt_content)])
         response_text = response.content.strip().strip("`").replace("json\n", "")
         print(f"[LLM] Response: {response_text}")
         result = json.loads(response_text)
@@ -162,7 +161,7 @@ def _parse_event_detail(html: str, url: str) -> dict:
     image = _event_image_url(soup)
 
     # Canonical link
-    link = _meta(soup, "og:url") or url
+    link = strip_utm_params(_meta(soup, "og:url") or url)
 
     # Organisation
     title_tag = soup.find("title")
@@ -202,7 +201,7 @@ def _parse_event_detail(html: str, url: str) -> dict:
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def fetch_events(category_filter: str = "", event_filter: str = "") -> dict:
+def fetch_events(category_filter: str = "", event_filter: str = "", backend_url: str | None = None) -> dict:
     try:
         ipv4 = _local_ipv4()
         session = _make_session()
@@ -214,9 +213,13 @@ def fetch_events(category_filter: str = "", event_filter: str = "") -> dict:
         if not event_urls:
             return {"events": []}
 
+        existing_links = fetch_existing_links("TEAMEVEREST", backend_url=backend_url)
         use_llm = bool(event_filter or category_filter)
         events = []
         for url in event_urls:
+            if strip_utm_params(url) in existing_links:
+                print(f"[TeamEverest] Skipping {url} — already in database")
+                continue
             # Step 2: fetch detail page
             detail_resp = session.get(url, timeout=15, interface=ipv4)
             if detail_resp.status_code != 200:

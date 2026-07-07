@@ -1,8 +1,9 @@
+from flask import request
 from flask_smorest import Blueprint
 from flask.views import MethodView
 from marshmallow import ValidationError
 
-from config import SourceEnum, PortalEnum, ActionTypeEnum
+from config import SourceEnum, PortalEnum, ActionTypeEnum, ALLOWED_BACKEND_URLS
 from models.schemas import (
     ScrapeRequestSchema,
     ScrapeResponseSchema,
@@ -88,6 +89,20 @@ class ScrapeAPI(MethodView):
         action = context["action"]
         action_type = action["type"]
         action_data = action["data"]
+
+        # Staging and production #local share this scraper deployment, so the caller's
+        # own base URL travels via header rather than a static env var — lets handlers
+        # (e.g. FETCH_EVENTS dedup) call back to the correct backend per request.
+        # Must match ALLOWED_BACKEND_URLS to prevent SSRF via this header. Only FETCH_EVENTS
+        # handlers use backend_url, so only that action type requires the header.
+        requested_backend_url = request.headers.get("X-Backend-Url", "")
+        normalized_backend_url = requested_backend_url.strip().rstrip("/")
+        if normalized_backend_url and normalized_backend_url in ALLOWED_BACKEND_URLS:
+            context["backend_url"] = normalized_backend_url
+        elif action_type == ActionTypeEnum.FETCH_EVENTS.value:
+            raise ValidationError("Missing or unrecognized X-Backend-Url header")
+        else:
+            context["backend_url"] = None
 
         # Validate supported source
         if source != SourceEnum.GOV_ISSUE_PORTAL.value and source != SourceEnum.EVENT_PORTAL.value:

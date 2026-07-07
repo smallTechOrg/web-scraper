@@ -6,11 +6,11 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 from curl_cffi import requests
-from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage
 
-from config import GROQ_API_KEY, GROQ_MODEL_NAME
 from models.enums import EventTypeEnum
+from portals.llm_client import fetch_existing_links, invoke_llm
+from utils.url_utils import strip_utm_params
 
 MYBHARAT_SEARCH_API = "https://search-api-prod.mybharats.in/events"
 MYBHARAT_CDN_URL = "https://cdn-prod.mybharats.in/"
@@ -68,7 +68,6 @@ def _detect_batch_with_llm(
     )
 
     try:
-        llm = ChatGroq(groq_api_key=GROQ_API_KEY, model_name=GROQ_MODEL_NAME)
         prompt_content = (
             _LLM_BATCH_PROMPT
             .replace("{event_types}", ", ".join(_EVENT_TYPE_VALUES))
@@ -76,7 +75,7 @@ def _detect_batch_with_llm(
             .replace("{category_filter}", category_filter)
             .replace("{events_batch}", batch_block)
         )
-        response = llm.invoke([SystemMessage(content=prompt_content)])
+        response = invoke_llm([SystemMessage(content=prompt_content)])
         response_text = response.content.strip().strip("`").replace("json\n", "")
         print(f"[LLM-batch] Response length: {len(response_text)} chars")
         results = json.loads(response_text)
@@ -252,6 +251,16 @@ def _build_address(record: dict) -> str | None:
     return ", ".join(parts) if parts else None
 
 
+def _get_record_link(record: dict) -> str:
+    """Extract the event link from a raw API record (mirrors _parse_event_record link logic)."""
+    link = record.get("event_link") or ""
+    if not link:
+        slug = (record.get("event_name") or "").replace(" ", "-")
+        event_id = record.get("id", "")
+        link = f"{MYBHARAT_BASE_URL}/pages/event_detail?event_name={slug}&key={event_id}"
+    return strip_utm_params(link)
+
+
 def _parse_event_record(record: dict) -> dict:
     """Transform a raw API record into our standard event dict."""
     start_time = _parse_datetime_ist(
@@ -269,6 +278,7 @@ def _parse_event_record(record: dict) -> dict:
         slug = (record.get("event_name") or "").replace(" ", "-")
         event_id = record.get("id", "")
         event_link = f"{MYBHARAT_BASE_URL}/pages/event_detail?event_name={slug}&key={event_id}"
+    event_link = strip_utm_params(event_link)
 
     return {
         "name": record.get("event_name"),
@@ -287,7 +297,7 @@ def _parse_event_record(record: dict) -> dict:
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def fetch_mybharat_events(category_filter: str = "", event_filter: str = "") -> dict:
+def fetch_mybharat_events(category_filter: str = "", event_filter: str = "", backend_url: str | None = None) -> dict:
     """
     Fetch volunteering events from the MY Bharat portal.
 
@@ -300,6 +310,7 @@ def fetch_mybharat_events(category_filter: str = "", event_filter: str = "") -> 
     Args:
         category_filter: Category keywords for LLM filtering (e.g. "civic engagement")
         event_filter: Event keywords for LLM filtering (e.g. "cleanliness drive")
+        backend_url: Calling backend's base URL, used to dedupe against its own database
 
     Returns:
         {"events": [list of event dicts]}
@@ -326,14 +337,20 @@ def fetch_mybharat_events(category_filter: str = "", event_filter: str = "") -> 
             seen_ids.add(eid)
             unique_events.append(record)
 
+        existing_links = fetch_existing_links("MYBHARATGOVIN", backend_url=backend_url)
         use_llm = bool(event_filter or category_filter)
         events = []
 
         if use_llm:
-            # Process in batches to minimise LLM calls
-            total = len(unique_events)
+            # Skip events already stored in the backend before sending to LLM
+            new_events = [r for r in unique_events if _get_record_link(r) not in existing_links]
+            skipped = len(unique_events) - len(new_events)
+            if skipped:
+                print(f"[MY Bharat] Skipping {skipped} events already in database")
+
+            total = len(new_events)
             for start in range(0, total, _BATCH_SIZE):
-                batch = unique_events[start : start + _BATCH_SIZE]
+                batch = new_events[start : start + _BATCH_SIZE]
                 batch_texts = [_build_event_text(r) for r in batch]
 
                 print(f"[LLM-batch] Processing events {start+1}-{start+len(batch)} of {total}")

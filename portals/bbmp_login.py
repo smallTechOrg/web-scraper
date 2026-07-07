@@ -103,60 +103,51 @@ def login_user(mobile: str, password: str, page):
 
                 print("Locating captcha input inside modal body...")
                 modal_body = login_modal.locator(".modal-body")
-                
-                # Debug: Print all input elements in the modal
-                print("🔍 Inspecting modal HTML structure...")
-                modal_html = login_modal.inner_html()
-                print(f"Modal HTML: {modal_html[:500]}...")  # Print first 500 chars
-                
-                # Try to find captcha input with proper selector
-                print("Trying selector: input[name='WordVerification']...")
-                captcha_input = modal_body.locator("input[name='WordVerification']")
-                
-                # Check if it exists, if not try alternative selector
-                try:
-                    captcha_input.wait_for(state="visible", timeout=60000)
-                    print("✓ Found input[name='WordVerification']")
-                except TimeoutError:
-                    print("✗ WordVerification input not found")
-                    
-                    # Try alternative selectors
-                    selectors = [
-                        "#MXX",
-                        "input[name='captcha']",
-                        "input[id*='captcha']",
-                        "input[placeholder*='captcha' i]",
-                        "input[placeholder*='verification' i]",
-                        "input:not([name*='username']):not([name*='password']):visible"
-                    ]
-                    
-                    captcha_input = None
-                    for selector in selectors:
-                        print(f"Trying selector: {selector}...")
-                        temp_input = modal_body.locator(selector)
+
+                # Try the selector confirmed to work on this site first, then fall
+                # back to alternatives (with short timeouts) in case the markup changes.
+                selectors = [
+                    "input[placeholder*='captcha' i]",
+                    "input[name='WordVerification']",
+                    "#MXX",
+                    "input[name='captcha']",
+                    "input[id*='captcha']",
+                    "input[placeholder*='verification' i]",
+                    "input:not([name*='username']):not([name*='password']):visible"
+                ]
+
+                captcha_input = None
+                for i, selector in enumerate(selectors):
+                    print(f"Trying selector: {selector}...")
+                    temp_input = modal_body.locator(selector)
+                    try:
+                        temp_input.wait_for(state="visible", timeout=60000 if i == 0 else 3000)
+                        print(f"✓ Found with selector: {selector}")
+                        captcha_input = temp_input
+                        break
+                    except TimeoutError:
+                        print(f"✗ Not found: {selector}")
+
+                if not captcha_input:
+                    # Debug: Print all input elements in the modal
+                    print("🔍 Inspecting modal HTML structure...")
+                    modal_html = login_modal.inner_html()
+                    print(f"Modal HTML: {modal_html[:500]}...")  # Print first 500 chars
+
+                    # Get all inputs in modal
+                    print("🔍 All input elements in modal:")
+                    all_inputs = modal_body.locator("input")
+                    count = all_inputs.count()
+                    print(f"Total inputs found: {count}")
+                    for i in range(min(count, 5)):
                         try:
-                            temp_input.wait_for(state="visible", timeout=60000)
-                            print(f"✓ Found with selector: {selector}")
-                            captcha_input = temp_input
-                            break
-                        except TimeoutError:
-                            print(f"✗ Not found: {selector}")
-                    
-                    if not captcha_input:
-                        # Get all inputs in modal
-                        print("🔍 All input elements in modal:")
-                        all_inputs = modal_body.locator("input")
-                        count = all_inputs.count()
-                        print(f"Total inputs found: {count}")
-                        for i in range(min(count, 5)):
-                            try:
-                                input_elem = all_inputs.nth(i)
-                                input_attrs = input_elem.get_attribute("outerHTML")
-                                print(f"Input {i}: {input_attrs}")
-                            except Exception:
-                                pass
-                        
-                        raise Exception("Cannot find captcha input element!")
+                            input_elem = all_inputs.nth(i)
+                            input_attrs = input_elem.get_attribute("outerHTML")
+                            print(f"Input {i}: {input_attrs}")
+                        except Exception:
+                            pass
+
+                    raise Exception("Cannot find captcha input element!")
 
                 print("Clearing any existing captcha input...")
                 captcha_input.clear()
@@ -182,23 +173,79 @@ def login_user(mobile: str, password: str, page):
                 sign_in_button.wait_for(state="visible", timeout=60000)
                 page.wait_for_timeout(200)  # Brief delay to ensure captcha is fully processed
                 
+                # The site validates the captcha entirely client-side - a wrong
+                # captcha never contacts the server at all, so DOM signals like the
+                # #popup_message alert are unreliable (the site never clears that
+                # text, even after a later successful login). The one reliable
+                # signal is the actual login validation call, which only fires when
+                # the captcha is right: POST .../dwr/call/plaincall/HomePagelogin.LoginVaildation.dwr
+                # A correct login returns a user record containing "loginid:"; a
+                # wrong password returns without it. We read the response via
+                # route.fetch() (rather than page.expect_response + response.text())
+                # because the site's JS callback triggers a page navigation the
+                # instant this response lands, and a follow-up CDP call to read an
+                # already-received response's body often loses the race ("No
+                # resource with given identifier found"); route.fetch() reads the
+                # body as part of making the request, so there's nothing to race.
+                welcome_locator = page.locator("text=Welcome")
+                dwr_result = {"body": None, "received": False}
+
+                # Must take exactly one parameter: Playwright inspects handler
+                # arity and calls handler(route, request) for a 2-arg handler,
+                # which would clobber a second param via positional args.
+                def _handle_login_dwr_route(route):
+                    response = route.fetch()
+                    try:
+                        dwr_result["body"] = response.text()
+                    except Exception:
+                        dwr_result["body"] = None
+                    dwr_result["received"] = True
+                    route.fulfill(response=response)
+
+                dwr_url_pattern = "**/dwr/call/plaincall/HomePagelogin.LoginVaildation.dwr"
+                page.route(dwr_url_pattern, _handle_login_dwr_route)
+
+                print("Clicking Sign In and waiting for server login validation call...")
                 sign_in_button.click()
 
-                print("Waiting for login success indicator...")
+                elapsed_wait_ms = 0
+                while not dwr_result["received"] and elapsed_wait_ms < 15000:
+                    page.wait_for_timeout(200)
+                    elapsed_wait_ms += 200
+
+                page.unroute(dwr_url_pattern, _handle_login_dwr_route)
+
+                login_response_body = dwr_result["body"] if dwr_result["received"] else None
+
+                if login_response_body is None:
+                    # No validation call fired - the captcha was rejected client-side
+                    # before the server was ever contacted.
+                    print("❌ Captcha rejected client-side (no server call fired), refreshing and retrying...")
+                    login_modal.locator("i.fa-refresh").click()
+                    page.wait_for_timeout(800)
+                    continue
+
+                if "loginid:" not in login_response_body:
+                    # Captcha was accepted (the server call fired at all), but the
+                    # returned record has no user data - mobile/password are wrong.
+                    # Retrying with a new captcha won't fix bad credentials.
+                    print("❌ Server rejected credentials (captcha was correct, mobile/password wrong)")
+                    return False, "Invalid mobile number or password"
+
+                print("Captcha and credentials accepted by server, waiting for page to finish logging in...")
                 try:
-                    page.wait_for_selector("text=Welcome", timeout=60000)
+                    welcome_locator.wait_for(state="visible", timeout=15000)
                     print("✅ Login successful!")
                     success = True
                     break
                 except TimeoutError:
-                    # Check if we're still on login form or if modal closed
                     try:
-                        login_modal.wait_for(state="hidden", timeout=60000)
+                        login_modal.wait_for(state="hidden", timeout=5000)
                         print("✅ Modal closed, assuming login successful!")
                         success = True
                         break
                     except TimeoutError:
-                        print("❌ Login failed, refreshing captcha and retrying...")
+                        print("❌ Credentials validated but page never completed login, refreshing captcha and retrying...")
                         login_modal.locator("i.fa-refresh").click()
                         page.wait_for_timeout(800)
 

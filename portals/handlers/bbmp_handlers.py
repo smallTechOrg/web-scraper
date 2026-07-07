@@ -185,8 +185,11 @@ def handle_fetch_events(action_data: dict, context: dict) -> tuple[bool, dict]:
     """
     event_filter = action_data.get("event_filter", "")
     category_filter = action_data.get("category_filter", "")
+    backend_url = context.get("backend_url")
 
-    result = fetch_events(category_filter=category_filter, event_filter=event_filter)
+    result = fetch_events(
+        category_filter=category_filter, event_filter=event_filter, backend_url=backend_url
+    )
 
     if "error" in result:
         return False, {"error": result["error"]}
@@ -220,10 +223,12 @@ def handle_fetch_mybharat_events(action_data: dict, context: dict) -> tuple[bool
     """
     event_filter = action_data.get("event_filter", "")
     category_filter = action_data.get("category_filter", "")
+    backend_url = context.get("backend_url")
 
     result = fetch_mybharat_events(
         category_filter=category_filter,
         event_filter=event_filter,
+        backend_url=backend_url,
     )
 
     if "error" in result:
@@ -254,10 +259,12 @@ def handle_fetch_ivolunteer_events(action_data: dict, context: dict) -> tuple[bo
     """
     event_filter = action_data.get("event_filter", "")
     category_filter = action_data.get("category_filter", "")
+    backend_url = context.get("backend_url")
 
     result = fetch_ivolunteer_events(
         category_filter=category_filter,
         event_filter=event_filter,
+        backend_url=backend_url,
     )
 
     if "error" in result:
